@@ -7,12 +7,16 @@ class Tabla
     private $username = "daniel";
     private $password = "1234";
     private $dataBaseName = "dbtest";
-    private $ArrayOfColumns;
+    private $arrayOfColumns;
     private $tableName;
 
-    function __construct($tableName, $arrayOfColumnsAndSize)
+    function __construct($tableName, $arrayOfColumnsAndSize, $lookForTable)
     {
-        $this->createTable($tableName, $arrayOfColumnsAndSize);
+        if ($lookForTable) {
+            $this->arrayOfColumns = $this->getTableByName($tableName);
+        } else {
+            $this->createTable($tableName, $arrayOfColumnsAndSize);
+        }
     }
 
     private function createTable($tableName, $arrayOfColumnsAndSize)
@@ -23,12 +27,16 @@ class Tabla
             $sql .= "$col_name VARCHAR($col_size),";
         }
         $sql .= "reg_date TIMESTAMP)";
-        if ($this->makeQuery($sql, false) != -1) {
-            $this->ArrayOfColumns = array_keys($arrayOfColumnsAndSize);
+        if ($this->makeQuery($sql, true) != -1) {
+            $this->arrayOfColumns = array("id");
+            $arr = array_keys($arrayOfColumnsAndSize);
+            foreach ($arr as $i) {
+                array_push($this->arrayOfColumns, $i);
+            }
+            array_push($this->arrayOfColumns, "reg_date");
             $this->tableName = $tableName;
-            echo "Creata tabla $tableName exitosamente \n";
         } else {
-            echo "Algo salio mal\n";
+//            echo "Algo salio mal\n";
         }
     }
 
@@ -37,8 +45,6 @@ class Tabla
         try {
             $conn = new PDO("mysql:host=$this->servername;dbname=$this->dataBaseName", $this->username, $this->password);
             $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            echo "Se realizó el siguiente query: \n\n";
-            echo $sql . "\n\n";
             if (!$needsTheReturnedData) {
 
                 $r = $conn->exec($sql);
@@ -48,7 +54,6 @@ class Tabla
             $conn = null;
             return $r;
         } catch (PDOException $e) {
-            echo "Sin embargo esto salió mal: " . $e->getMessage() . "\n\n";
             if ($e->getCode() == "42S01") {
                 return -2;
             }
@@ -71,18 +76,18 @@ class Tabla
         $sql = substr($sql, 0, strlen($sql) - 1);
         $sql .= ")";
         if ($this->makeQuery($sql, false) != -1) {
-            echo "Tabla $this->tableName actualizada correctamente\n";
+//            echo "Tabla $this->tableName actualizada correctamente\n";
         } else {
-            echo "No se pudo actualizar la tabla $this->tableName correctamente\n";
+//            echo "No se pudo actualizar la tabla $this->tableName correctamente\n";
         }
     }
 
-    function getContactByColumnName($columnName, $value)
+    function getContactByName($columnName, $value)
     {
         $sql = "SELECT * FROM $this->tableName WHERE $columnName = '$value'";
         $pdoObject = $this->makeQuery($sql, true);
         foreach ($pdoObject as $i) {
-            foreach ($this->ArrayOfColumns as $column) {
+            foreach ($this->arrayOfColumns as $column) {
                 echo $i[$column] . "\t";
             }
             echo "\n";
@@ -92,13 +97,16 @@ class Tabla
     function getAllContacts()
     {
         $sql = "SELECT * FROM $this->tableName";
+        $strReturn = "";
         $pdoObject = $this->makeQuery($sql, true);
         foreach ($pdoObject as $i) {
-            foreach ($this->ArrayOfColumns as $column) {
-                echo $i[$column] . "\t";
+            $strReturn .= "<tr>";
+            foreach ($this->arrayOfColumns as $column) {
+                $strReturn .= "<td>" . $i[$column] . "</td>";
             }
-            echo "\n";
+            $strReturn .= "</tr>";
         }
+        return $strReturn;
     }
 
     function changeContactInfo($arrOfColAndVal, $arrOfColAndValToChange)
@@ -130,6 +138,30 @@ class Tabla
     {
         $slq = "TRUNCATE TABLE $this->tableName";
         $this->makeQuery($slq, false);
+    }
+
+
+    public function getArrayOfColumns()
+    {
+        return $this->arrayOfColumns;
+    }
+
+    private function getTableByName($tableName)
+    {
+        try {
+            $conn = new PDO("mysql:host=$this->servername;dbname=$this->dataBaseName", $this->username, $this->password);
+            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $q = $conn->prepare("DESCRIBE $tableName");
+            $q->execute();
+            $table_fields = $q->fetchAll(PDO::FETCH_COLUMN);
+            $this->tableName = $tableName;
+
+            $conn = null;
+            return $table_fields;
+        } catch (PDOException $e) {
+            echo $e->getMessage();
+            return array();
+        }
     }
 }
 
