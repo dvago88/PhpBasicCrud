@@ -13,7 +13,7 @@ class Tabla
     function __construct($tableName, $arrayOfColumnsAndSize, $lookForTable)
     {
         if ($lookForTable) {
-            $this->arrayOfColumns = $this->getTableByName($tableName);
+            $this->getTableByName($tableName);
         } else {
             $this->createTable($tableName, $arrayOfColumnsAndSize);
         }
@@ -27,7 +27,8 @@ class Tabla
             $sql .= "$col_name VARCHAR($col_size),";
         }
         $sql .= "reg_date TIMESTAMP)";
-        if ($this->makeQuery($sql, true) != -1) {
+        $dataBaseResponse = $this->makeQuery($sql, false);
+        if ($dataBaseResponse > -1) {
             $this->arrayOfColumns = array("id");
             $arr = array_keys($arrayOfColumnsAndSize);
             foreach ($arr as $i) {
@@ -35,6 +36,8 @@ class Tabla
             }
             array_push($this->arrayOfColumns, "reg_date");
             $this->tableName = $tableName;
+        } elseif ($dataBaseResponse == -2) {
+            $this->getTableByName($tableName);
         } else {
 //            echo "Algo salio mal\n";
         }
@@ -97,16 +100,16 @@ class Tabla
     function getAllContacts()
     {
         $sql = "SELECT * FROM $this->tableName";
-        $strReturn = "";
+        $arrReturn = array();
         $pdoObject = $this->makeQuery($sql, true);
         foreach ($pdoObject as $i) {
-            $strReturn .= "<tr>";
+            $arrCache = array();
             foreach ($this->arrayOfColumns as $column) {
-                $strReturn .= "<td>" . $i[$column] . "</td>";
+                array_push($arrCache, $i[$column]);
             }
-            $strReturn .= "</tr>";
+            array_push($arrReturn, $arrCache);
         }
-        return $strReturn;
+        return $arrReturn;
     }
 
     function changeContactInfo($arrOfColAndVal, $arrOfColAndValToChange)
@@ -124,6 +127,12 @@ class Tabla
         $this->makeQuery($sql, false);
     }
 
+    function updateContactById($id, $col, $val)
+    {
+        $sql = "UPDATE $this->tableName SET $col = '$val' WHERE id = $id";
+        $this->makeQuery($sql, false);
+    }
+
     function deleteContactByFullName($arrOfColAndVal)
     {
         $sql = "DELETE FROM $this->tableName WHERE";
@@ -131,6 +140,12 @@ class Tabla
             $sql .= " $col_name ='$col_value' AND";
         }
         $sql = substr($sql, 0, strlen($sql) - 3);
+        $this->makeQuery($sql, false);
+    }
+
+    function deleteContactById($id)
+    {
+        $sql = "DELETE FROM $this->tableName WHERE id = $id";
         $this->makeQuery($sql, false);
     }
 
@@ -153,11 +168,13 @@ class Tabla
             $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $q = $conn->prepare("DESCRIBE $tableName");
             $q->execute();
-            $table_fields = $q->fetchAll(PDO::FETCH_COLUMN);
+            $tableFields = $q->fetchAll(PDO::FETCH_COLUMN);
             $this->tableName = $tableName;
+            $this->arrayOfColumns = $tableFields;
+
 
             $conn = null;
-            return $table_fields;
+            return $tableFields;
         } catch (PDOException $e) {
             echo $e->getMessage();
             return array();

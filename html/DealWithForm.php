@@ -23,7 +23,6 @@
         $count = 1;
         try {
             include("/var/www/Tabla.php");
-//            include("/var/www/Main.php");
             if ($_POST["checker"]) {
                 $columns = array();
                 $tableName = $_POST["tableName"];
@@ -43,8 +42,25 @@
                 }
                 $myTable = new Tabla($tableName, $columns, false);
                 preConstructTable($myTable);
+                printData($myTable->getAllContacts(), $tableName,$myTable->getArrayOfColumns());
                 postConstructTable($myTable, $tableName);
 
+            } elseif ($_POST["cual"] == "del") {
+                $tableName = $_POST["tableName"];
+                $myTable = new Tabla($tableName, 0, true);
+                $myTable->deleteContactById($_POST["id"]);
+                preConstructTable($myTable);
+                printData($myTable->getAllContacts(), $tableName,$myTable->getArrayOfColumns());
+                postConstructTable($myTable, $tableName);
+
+            } elseif ($_POST["cual"] == "add") {
+                $tableName = $_POST["tableName"];
+                echo $_POST["columnName"];
+                $myTable = new Tabla($tableName, 0, true);
+                $myTable->updateContactById($_POST["id"], $_POST["columnName"], $_POST["updatedVal"]);
+                preConstructTable($myTable);
+                printData($myTable->getAllContacts(), $tableName, $myTable->getArrayOfColumns());
+                postConstructTable($myTable, $tableName);
             } else {
                 $arr = array();
                 $tableName = $_POST["tableName"];
@@ -56,12 +72,44 @@
                 }
                 $myTable->addData($arr);
                 preConstructTable($myTable);
-                echo $myTable->getAllContacts();
+                printData($myTable->getAllContacts(), $tableName, $myTable->getArrayOfColumns());
                 postConstructTable($myTable, $tableName);
             }
 
         } catch (Exception $e) {
             echo $e->getMessage();
+        }
+
+        function printData($arr, $tableName, $arrOfCol)
+        {
+            foreach ($arr as $row) {
+                $count = 0;
+                $id = 0;
+                echo "<tr>";
+
+                foreach ($row as $column) {
+                    if ($id == 0) {
+                        $id = $column;
+                    }
+                    echo "<td>
+                            <p class='aaa' id='column$id'>" . $column . "</p>
+                            <form method='post' action='DealWithForm.php'>
+                            <input type='hidden' value='$id' name='id'>
+                            <input type='hidden' value='$tableName' name='tableName'>
+                            <input type='hidden' value='$arrOfCol[$count]' name='columnName'>
+                            <input type='hidden' value='add' name='cual'>
+                            </form></td>";
+                    $count++;
+                }
+                echo "<td>
+                        <form method='post' action='DealWithForm.php'>
+                        <input type='hidden' value='$id' name='id'>
+                        <input type='hidden' value='$tableName' name='tableName'>
+                        <input type='hidden' value='del' name='cual'>
+                        <button type='submit' class='btn btn-danger'>Borrar</button>
+                        </form>
+                     </td></tr>";
+            }
         }
 
         function preConstructTable($myTable)
@@ -70,25 +118,48 @@
             foreach ($myTable->getArrayOfColumns() as $col_name) {
                 echo "<th scope='col'>$col_name</th>";
             }
-            echo "<th>Agregar</th></tr></thead><tbody>";
+            echo "<th>Botones</th></tr></thead><tbody>";
         }
 
         function postConstructTable($myTable, $tableName)
         {
-            echo "<form method='post' action='DealWithForm.php'><input type='hidden' name='tableName' value='$tableName'><tr>";
+            echo "<form method='post' id='addForm' action='DealWithForm.php'><input type='hidden' name='tableName' value='$tableName'><tr>";
 
             foreach ($myTable->getArrayOfColumns() as $col_name) {
                 if ($col_name != "id" && $col_name != "reg_date") {
-                    echo "<td><input name='$col_name' type='text'></td>";
+                    echo "<td><input name='$col_name' class='inputs' type='text'></td>";
                 } else {
                     echo "<td>-</td>";
                 }
 
             }
-            echo "<td><button type='submit' class='btn btn-primary'>Agregar</button></td></tr></form></tbody>";
+            echo "<td><button type='submit' id='agregar' class='btn btn-primary'>Agregar</button></td></tr></form></tbody>";
         }
+
         ?>
     </table>
+    <script>
+        $('#addForm').on('submit', function (e) {
+            const inputs = document.getElementsByClassName("inputs");
+            for (let i = 0; i < inputs.length; i++) {
+                if (inputs[i].value !== "") {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        $("p").click(function () {
+            console.log($(this).text());
+            let value = $(this).text();
+            $(this).next().append(
+                `<input type="text" name="updatedVal" value="${value}" placeholder="${value}">
+                 <button type="submit" class='btn btn-primary'>Actualizar</button>
+            `);
+            $(this).detach();
+        });
+
+    </script>
 </div>
 
 </body>
